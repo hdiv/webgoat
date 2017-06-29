@@ -61,383 +61,384 @@ import java.util.TimeZone;
  */
 public class HammerHead extends HttpServlet {
 
-	final Logger logger = LoggerFactory.getLogger(HammerHead.class);
+    final Logger logger = LoggerFactory.getLogger(HammerHead.class);
 
-	private static final String WELCOMED = "welcomed";
+    private static final String WELCOMED = "welcomed";
 
-	/**
-	 *
-	 */
-	private static final long serialVersionUID = 645640331343188020L;
+    /**
+     *
+     */
+    private static final long serialVersionUID = 645640331343188020L;
 
-	/**
-	 * Description of the Field
-	 */
-	protected static SimpleDateFormat httpDateFormat;
+    /**
+     * Description of the Field
+     */
+    protected static SimpleDateFormat httpDateFormat;
 
-	/**
-	 * Set the session timeout to be 2 days
-	 */
-	private final static int sessionTimeoutSeconds = 60 * 60 * 24 * 2;
+    /**
+     * Set the session timeout to be 2 days
+     */
+    private final static int sessionTimeoutSeconds = 60 * 60 * 24 * 2;
 
-	// private final static int sessionTimeoutSeconds = 1;
-	/**
-	 * Properties file path
-	 */
-	public static String propertiesPath = null;
+    // private final static int sessionTimeoutSeconds = 1;
+    /**
+     * Properties file path
+     */
+    public static String propertiesPath = null;
 
     /**
      * provides convenience methods for getting setup information from the
      * ServletContext
      */
-	private WebgoatContext webgoatContext = null;
+    private WebgoatContext webgoatContext = null;
 
-	/**
-	 * {@inheritDoc}
-	 *
-	 * Description of the Method
-	 * @exception IOException Description of the Exception
-	 * @exception ServletException Description of the Exception
-	 */
-	@Override
-	public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-		doPost(request, response);
-	}
+    /**
+     * {@inheritDoc}
+     *
+     * Description of the Method
+     * @exception IOException Description of the Exception
+     * @exception ServletException Description of the Exception
+     */
+    @Override
+    public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        doPost(request, response);
+    }
 
-	/**
-	 * {@inheritDoc}
-	 *
-	 * Description of the Method
-	 * @exception IOException Description of the Exception
-	 * @exception ServletException Description of the Exception
-	 */
-	@Override
-	public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-		Screen screen = null;
+    /**
+     * {@inheritDoc}
+     *
+     * Description of the Method
+     * @exception IOException Description of the Exception
+     * @exception ServletException Description of the Exception
+     */
+    @Override
+    public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        Screen screen = null;
 
-		WebSession mySession = null;
-		try {
-			logger.debug("Entering doPost");
-			logger.debug("request: " + request);
-			logger.debug("principle: " + request.getUserPrincipal());
-			// setCacheHeaders(response, 0);
-			ServletContext context = getServletContext();
+        WebSession mySession = null;
+        try {
+            logger.debug("Entering doPost");
+            logger.debug("request: " + request);
+            logger.debug("principle: " + request.getUserPrincipal());
+            // setCacheHeaders(response, 0);
+            ServletContext context = getServletContext();
 
-			// FIXME: If a response is written by updateSession(), do not
-			// call makeScreen() and writeScreen()
-			mySession = updateSession(request, response, context);
+            // FIXME: If a response is written by updateSession(), do not
+            // call makeScreen() and writeScreen()
+            mySession = updateSession(request, response, context);
+            
+            if (response.isCommitted()) {
+                logger.debug("Response already committed, exiting");
+                return;
+            }
+            
+            if ("true".equals(request.getParameter("start")) || request.getQueryString() == null) {
+                logger.warn("Redirecting to first lesson");
+                response.sendRedirect("start.mvc" + mySession.getCourse().getFirstLesson().getLink());
+                return;
+            }
 
-			if (response.isCommitted()) {
-				logger.debug("Response already committed, exiting");
-				return;
-			}
+            // Note: For the lesson to track the status, we need to update
+            // the lesson tracker object
+            // from the screen.createContent() method. The create content is
+            // the only point
+            // where the lesson "knows" what has happened. To track it at a
+            // latter point would
+            // require the lesson to have memory.
+            screen = makeScreen(mySession);
+            // This calls the lesson's
+            // handleRequest()
+            if (response.isCommitted()) {
+                return;
+            }
 
-			if ("true".equals(request.getParameter("start")) || request.getQueryString() == null) {
-				logger.warn("Redirecting to first lesson");
-				response.sendRedirect("start.mvc" + mySession.getCourse().getFirstLesson().getLink());
-				return;
-			}
+            // perform lesson-specific tracking activities
+            if (screen instanceof AbstractLesson) {
+                AbstractLesson lesson = (AbstractLesson) screen;
 
-			// Note: For the lesson to track the status, we need to update
-			// the lesson tracker object
-			// from the screen.createContent() method. The create content is
-			// the only point
-			// where the lesson "knows" what has happened. To track it at a
-			// latter point would
-			// require the lesson to have memory.
-			screen = makeScreen(mySession);
-			// This calls the lesson's
-			// handleRequest()
-			if (response.isCommitted()) {
-				return;
-			}
-
-			// perform lesson-specific tracking activities
-			if (screen instanceof AbstractLesson) {
-				AbstractLesson lesson = (AbstractLesson) screen;
-
-				// we do not count the initial display of the lesson screen as a visit
-				if ("GET".equals(request.getMethod())) {
-					String uri = request.getRequestURI() + "?" + request.getQueryString();
-					if (!uri.endsWith(lesson.getLink())) {
-						screen.getLessonTracker(mySession).incrementNumVisits();
-					}
+                // we do not count the initial display of the lesson screen as a visit
+                if ("GET".equals(request.getMethod())) {
+                    String uri = request.getRequestURI() + "?" + request.getQueryString();
+                    if (!uri.endsWith(lesson.getLink())) {
+                        screen.getLessonTracker(mySession).incrementNumVisits();
+                    }
                 } else if ("POST".equals(request.getMethod())
                         && mySession.getPreviousScreen() == mySession.getCurrentScreen()) {
-					screen.getLessonTracker(mySession).incrementNumVisits();
-				}
-			}
+                    screen.getLessonTracker(mySession).incrementNumVisits();
+                }
+            }
 
-			// log the access to this screen for this user
-			UserTracker userTracker = UserTracker.instance();
-			userTracker.update(mySession, screen);
-			log(request, screen.getClass().getName() + " | " + mySession.getParser().toString());
+            // log the access to this screen for this user
+            UserTracker userTracker = UserTracker.instance();
+            userTracker.update(mySession, screen);
+            log(request, screen.getClass().getName() + " | " + mySession.getParser().toString());
 
-			// Redirect the request to our View servlet
-			String userAgent = request.getHeader("user-agent");
-			String clientBrowser = "Not known!";
-			if (userAgent != null) {
-				clientBrowser = userAgent;
-			}
-			request.setAttribute("client.browser", clientBrowser);
-			// removed - this is being done in updateSession call
-			// request.getSession().setAttribute(WebSession.SESSION, mySession);
-			// not sure why this is being set in the session?
-			// request.getSession().setAttribute(WebSession.COURSE, mySession.getCourse());
-			String viewPage = getViewPage(mySession);
-			logger.debug("Forwarding to view: " + viewPage);
-			logger.debug("Screen: " + screen);
-			request.getRequestDispatcher(viewPage).forward(request, response);
-		}
-		catch (Throwable t) {
-			if (t.getClass().getName().startsWith("org.hdiv")) {
-				throw new RuntimeException(t);
-			}
-			logger.error("Error handling request", t);
-			screen = new ErrorScreen(mySession, t);
-		}
-		finally {
-			try {
-				if (screen instanceof ErrorScreen) {
+            // Redirect the request to our View servlet
+            String userAgent = request.getHeader("user-agent");
+            String clientBrowser = "Not known!";
+            if (userAgent != null) {
+                clientBrowser = userAgent;
+            }
+            request.setAttribute("client.browser", clientBrowser);
+            // removed - this is being done in updateSession call
+            //request.getSession().setAttribute(WebSession.SESSION, mySession);
+            // not sure why this is being set in the session?
+            //request.getSession().setAttribute(WebSession.COURSE, mySession.getCourse());
+            String viewPage = getViewPage(mySession);
+            logger.debug("Forwarding to view: " + viewPage);
+            logger.debug("Screen: " + screen);
+            request.getRequestDispatcher(viewPage).forward(request, response);
+        }
+        catch (Throwable t) {
+            if (t.getClass().getName().startsWith("org.hdiv")) {
+                throw new RuntimeException(t);
+            }
+            logger.error("Error handling request", t);
+            screen = new ErrorScreen(mySession, t);
+        }
+        finally {
+            try {
+                if (screen instanceof ErrorScreen) {
                     this.writeScreen(mySession, screen, response);
-				}
+                }
             } catch (Throwable thr) {
-				logger.error("Could not write error screen", thr);
-			}
-			WebSession.returnConnection(mySession);
-			logger.debug("Leaving doPost: ");
-		}
-	}
+                logger.error("Could not write error screen", thr);
+            }
+            WebSession.returnConnection(mySession);
+            logger.debug("Leaving doPost: ");
+        }
+    }
 
-	private String getViewPage(WebSession webSession) {
-		// now always display the lesson content
-		String page = "/lesson_content.jsp";
-		// page = "/main.jsp";
-		return page;
-	}
+    private String getViewPage(WebSession webSession) {
+        // now always display the lesson content
+        String page = "/lesson_content.jsp";
+        //page = "/main.jsp";
+        return page;
+    }
 
-	/**
-	 * Description of the Method
-	 *
-	 * @param date Description of the Parameter
-	 * @return RFC 1123 http date format
-	 */
-	protected static String formatHttpDate(Date date) {
-		synchronized (httpDateFormat) {
-			return httpDateFormat.format(date);
-		}
-	}
+    /**
+     * Description of the Method
+     *
+     * @param date Description of the Parameter
+     * @return RFC 1123 http date format
+     */
+    protected static String formatHttpDate(Date date) {
+        synchronized (httpDateFormat) {
+            return httpDateFormat.format(date);
+        }
+    }
 
-	/**
-	 * {@inheritDoc}
-	 *
-	 * Return information about this servlet
-	 */
-	@Override
-	public String getServletInfo() {
-		return "WebGoat is sponsored by Aspect Security.";
-	}
+    /**
+     * {@inheritDoc}
+     *
+     * Return information about this servlet
+     */
+    @Override
+    public String getServletInfo() {
+        return "WebGoat is sponsored by Aspect Security.";
+    }
 
-	/**
-	 * {@inheritDoc}
-	 *
-	 * Return properties path
-	 */
-	@Override
-	public void init() throws ServletException {
-		logger.info("Initializing main webgoat servlet");
-		httpDateFormat = new SimpleDateFormat("EEE, dd MMM yyyyy HH:mm:ss z", Locale.US);
-		httpDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
-		propertiesPath = getServletContext().getRealPath("/WEB-INF/webgoat.properties");
-		webgoatContext = new WebgoatContext(this);
-	}
+    /**
+     * {@inheritDoc}
+     *
+     * Return properties path
+     */
+    @Override
+    public void init() throws ServletException {
+        logger.info("Initializing main webgoat servlet");
+        httpDateFormat = new SimpleDateFormat("EEE, dd MMM yyyyy HH:mm:ss z", Locale.US);
+        httpDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+        propertiesPath = getServletContext().getRealPath("/WEB-INF/webgoat.properties");
+        webgoatContext = new WebgoatContext(this);
+    }
 
-	/**
-	 * Description of the Method
-	 *
-	 * @param request Description of the Parameter
-	 * @param message Description of the Parameter
-	 */
-	public void log(HttpServletRequest request, String message) {
-		String output = new Date() + " | " + request.getRemoteHost() + ":" + request.getRemoteAddr() + " | " + message;
-		log(output);
-		logger.debug(output);
-	}
+    /**
+     * Description of the Method
+     *
+     * @param request Description of the Parameter
+     * @param message Description of the Parameter
+     */
+    public void log(HttpServletRequest request, String message) {
+        String output = new Date() + " | " + request.getRemoteHost() + ":" + request.getRemoteAddr() + " | " + message;
+        log(output);
+        logger.debug(output);
+    }
 
-	/*
+    /*
      * public List getLessons(Category category, String role) { Course course =
      * mySession.getCourse(); // May need to clone the List before returning it. //return new
      * ArrayList(course.getLessons(category, role)); return course.getLessons(category, role); }
-	 */
-	/**
-	 * Description of the Method
-	 *
-	 * @param s Description of the Parameter
-	 * @return Description of the Return Value
-	 */
-	protected Screen makeScreen(WebSession s) {
-		Screen screen = null;
-		int scr = s.getCurrentScreen();
-		Course course = s.getCourse();
+     */
+    /**
+     * Description of the Method
+     *
+     * @param s Description of the Parameter
+     * @return Description of the Return Value
+     */
+    protected Screen makeScreen(WebSession s) {
+        Screen screen = null;
+        int scr = s.getCurrentScreen();
+        Course course = s.getCourse();
 
-		if (s.isUser() || s.isChallenge()) {
-			if (scr == WebSession.WELCOME) {
-				screen = new WelcomeScreen(s);
+        if (s.isUser() || s.isChallenge()) {
+            if (scr == WebSession.WELCOME) {
+                screen = new WelcomeScreen(s);
             } else {
-				AbstractLesson lesson = course.getLesson(s, scr, AbstractLesson.USER_ROLE);
-				if (lesson == null && s.isHackedAdmin()) {
-					// If admin was hacked, let the user see some of the
-					// admin screens
-					lesson = course.getLesson(s, scr, AbstractLesson.HACKED_ADMIN_ROLE);
-				}
+                AbstractLesson lesson = course.getLesson(s, scr, AbstractLesson.USER_ROLE);
+                if (lesson == null && s.isHackedAdmin()) {
+                    // If admin was hacked, let the user see some of the
+                    // admin screens
+                    lesson = course.getLesson(s, scr, AbstractLesson.HACKED_ADMIN_ROLE);
+                }
 
-				if (lesson != null) {
-					screen = lesson;
+                if (lesson != null) {
+                    screen = lesson;
 
-					// We need to do some bookkeeping for the hackable admin
-					// interface.
-					// This is the only place we can tell if the user
-					// successfully hacked the hackable
-					// admin and has actually accessed an admin screen. You
-					// need BOTH pieces of information
-					// in order to satisfy the remote admin lesson.
-					s.setHasHackableAdmin(screen.getRole());
+                    // We need to do some bookkeeping for the hackable admin
+                    // interface.
+                    // This is the only place we can tell if the user
+                    // successfully hacked the hackable
+                    // admin and has actually accessed an admin screen. You
+                    // need BOTH pieces of information
+                    // in order to satisfy the remote admin lesson.
+                    s.setHasHackableAdmin(screen.getRole());
 
-					lesson.handleRequest(s);
-					s.setCurrentMenu(lesson.getCategory().getRanking());
+                    lesson.handleRequest(s);
+                    s.setCurrentMenu(lesson.getCategory().getRanking());
                 } else {
-					screen = new ErrorScreen(s, "Invalid screen requested.  Try: http://localhost/WebGoat/attack");
-				}
-			}
+                    screen = new ErrorScreen(s, "Invalid screen requested.  Try: http://localhost/WebGoat/attack");
+                }
+            }
         } else if (s.isAdmin()) {
-			if (scr == WebSession.WELCOME) {
-				screen = new WelcomeAdminScreen(s);
+            if (scr == WebSession.WELCOME) {
+                screen = new WelcomeAdminScreen(s);
             } else {
-				// Admin can see all roles.
-				// FIXME: should be able to pass a list of roles.
-				AbstractLesson lesson = course.getLesson(s, scr, AbstractLesson.ADMIN_ROLE);
-				if (lesson == null) {
-					lesson = course.getLesson(s, scr, AbstractLesson.HACKED_ADMIN_ROLE);
-				}
-				if (lesson == null) {
-					lesson = course.getLesson(s, scr, AbstractLesson.USER_ROLE);
-				}
+                // Admin can see all roles.
+                // FIXME: should be able to pass a list of roles.
+                AbstractLesson lesson = course.getLesson(s, scr, AbstractLesson.ADMIN_ROLE);
+                if (lesson == null) {
+                    lesson = course.getLesson(s, scr, AbstractLesson.HACKED_ADMIN_ROLE);
+                }
+                if (lesson == null) {
+                    lesson = course.getLesson(s, scr, AbstractLesson.USER_ROLE);
+                }
 
-				if (lesson != null) {
-					screen = lesson;
+                if (lesson != null) {
+                    screen = lesson;
 
-					// We need to do some bookkeeping for the hackable admin
-					// interface.
-					// This is the only place we can tell if the user
-					// successfully hacked the hackable
-					// admin and has actually accessed an admin screen. You
-					// need BOTH pieces of information
-					// in order to satisfy the remote admin lesson.
-					s.setHasHackableAdmin(screen.getRole());
+                    // We need to do some bookkeeping for the hackable admin
+                    // interface.
+                    // This is the only place we can tell if the user
+                    // successfully hacked the hackable
+                    // admin and has actually accessed an admin screen. You
+                    // need BOTH pieces of information
+                    // in order to satisfy the remote admin lesson.
+                    s.setHasHackableAdmin(screen.getRole());
 
-					lesson.handleRequest(s);
-					s.setCurrentMenu(lesson.getCategory().getRanking());
+                    lesson.handleRequest(s);
+                    s.setCurrentMenu(lesson.getCategory().getRanking());
                 } else {
-					screen = new ErrorScreen(s,
-							"Invalid screen requested.  Try Setting Admin to false or Try: http://localhost/WebGoat/attack");
-				}
-			}
-		}
+                    screen = new ErrorScreen(s,
+                            "Invalid screen requested.  Try Setting Admin to false or Try: http://localhost/WebGoat/attack");
+                }
+            }
+        }
 
         return (screen);
-	}
+    }
 
-	/**
-	 * This method sets the required expiration headers in the response for a given RunData object. This method attempts to set all relevant
-	 * headers, both for HTTP 1.0 and HTTP 1.1.
-	 *
-	 * @param response The new cacheHeaders value
-	 * @param expiry The new cacheHeaders value
-	 */
-	protected static void setCacheHeaders(HttpServletResponse response, int expiry) {
-		if (expiry == 0) {
-			response.setHeader("Pragma", "no-cache");
-			response.setHeader("Cache-Control", "no-cache");
-			response.setHeader("Expires", formatHttpDate(new Date()));
+    /**
+     * This method sets the required expiration headers in the response for a
+     * given RunData object. This method attempts to set all relevant headers,
+     * both for HTTP 1.0 and HTTP 1.1.
+     *
+     * @param response The new cacheHeaders value
+     * @param expiry The new cacheHeaders value
+     */
+    protected static void setCacheHeaders(HttpServletResponse response, int expiry) {
+        if (expiry == 0) {
+            response.setHeader("Pragma", "no-cache");
+            response.setHeader("Cache-Control", "no-cache");
+            response.setHeader("Expires", formatHttpDate(new Date()));
         } else {
-			Date expiryDate = new Date(System.currentTimeMillis() + expiry);
-			response.setHeader("Expires", formatHttpDate(expiryDate));
-		}
-	}
+            Date expiryDate = new Date(System.currentTimeMillis() + expiry);
+            response.setHeader("Expires", formatHttpDate(expiryDate));
+        }
+    }
 
-	/**
-	 * Description of the Method
-	 *
-	 * @param request Description of the Parameter
-	 * @param response Description of the Parameter
-	 * @param context Description of the Parameter
-	 * @return Description of the Return Value
-	 * @throws java.io.IOException if any.
-	 */
-	protected WebSession updateSession(HttpServletRequest request, HttpServletResponse response, ServletContext context)
-			throws IOException {
-		HttpSession hs;
-		// session should already be created by spring security
-		hs = request.getSession(false);
+    /**
+     * Description of the Method
+     *
+     * @param request Description of the Parameter
+     * @param response Description of the Parameter
+     * @param context Description of the Parameter
+     * @return Description of the Return Value
+     * @throws java.io.IOException if any.
+     */
+    protected WebSession updateSession(HttpServletRequest request, HttpServletResponse response, ServletContext context)
+            throws IOException {
+        HttpSession hs;
+        // session should already be created by spring security
+        hs = request.getSession(false);
 
-		logger.debug("HH Entering Session_id: " + hs.getId());
-		// dumpSession( hs );
-		// Get our session object out of the HTTP session
-		WebSession session = null;
-		Object o = hs.getAttribute(WebSession.SESSION);
+        logger.debug("HH Entering Session_id: " + hs.getId());
+        // dumpSession( hs );
+        // Get our session object out of the HTTP session
+        WebSession session = null;
+        Object o = hs.getAttribute(WebSession.SESSION);
 
         if ((o != null) && o instanceof WebSession) {
-			session = (WebSession) o;
-			hs.setAttribute(WebSession.COURSE, session.getCourse());
+            session = (WebSession) o;
+            hs.setAttribute(WebSession.COURSE, session.getCourse());
         } else {
-			// Create new custom session and save it in the HTTP session
-			logger.warn("HH Creating new WebSession");
-			session = new WebSession(webgoatContext, context);
-			// Ensure splash screen shows on any restart
-			// rlawson - removed this since we show splash screen at login now
-			// hs.removeAttribute(WELCOMED);
-			hs.setAttribute(WebSession.SESSION, session);
-			// reset timeout
-			hs.setMaxInactiveInterval(sessionTimeoutSeconds);
-		}
+            // Create new custom session and save it in the HTTP session
+            logger.warn("HH Creating new WebSession");
+            session = new WebSession(webgoatContext, context);
+            // Ensure splash screen shows on any restart
+            // rlawson - removed this since we show splash screen at login now
+            //hs.removeAttribute(WELCOMED);
+            hs.setAttribute(WebSession.SESSION, session);
+            // reset timeout
+            hs.setMaxInactiveInterval(sessionTimeoutSeconds);
+        }
 
         session.update(request, response, this.getServletName());
-		// update last attack request info (cookies, parms)
-		// this is so the REST services can have access to them via the session
-		session.updateLastAttackRequestInfo(request);
+        // update last attack request info (cookies, parms)
+        // this is so the REST services can have access to them via the session 
+        session.updateLastAttackRequestInfo(request);
 
-		// to authenticate
-		logger.debug("HH Leaving Session_id: " + hs.getId());
-		// dumpSession( hs );
+        // to authenticate
+        logger.debug("HH Leaving Session_id: " + hs.getId());
+        //dumpSession( hs );
         return (session);
-	}
+    }
 
-	/**
-	 * Description of the Method
-	 *
-	 * @param s Description of the Parameter
-	 * @param screen a {@link org.owasp.webgoat.session.Screen} object.
-	 * @param screen a {@link org.owasp.webgoat.session.Screen} object.
-	 * @param response Description of the Parameter
-	 * @exception IOException Description of the Exception
-	 * @throws java.io.IOException if any.
-	 */
-	protected void writeScreen(WebSession s, Screen screen, HttpServletResponse response) throws IOException {
-		response.setContentType("text/html");
+    /**
+     * Description of the Method
+     *
+     * @param s Description of the Parameter
+     * @param screen a {@link org.owasp.webgoat.session.Screen} object.
+     * @param screen a {@link org.owasp.webgoat.session.Screen} object.
+     * @param response Description of the Parameter
+     * @exception IOException Description of the Exception
+     * @throws java.io.IOException if any.
+     */
+    protected void writeScreen(WebSession s, Screen screen, HttpServletResponse response) throws IOException {
+        response.setContentType("text/html");
 
-		PrintWriter out = response.getWriter();
+        PrintWriter out = response.getWriter();
 
-		if (s == null) {
-			screen = new ErrorScreen(s, "Page to display was null");
-		}
+        if (s == null) {
+            screen = new ErrorScreen(s, "Page to display was null");
+        }
 
-		// set the content-length of the response.
-		// Trying to avoid chunked-encoding. (Aspect required)
-		response.setContentLength(screen.getContentLength());
-		response.setHeader("Content-Length", screen.getContentLength() + "");
+        // set the content-length of the response.
+        // Trying to avoid chunked-encoding. (Aspect required)
+        response.setContentLength(screen.getContentLength());
+        response.setHeader("Content-Length", screen.getContentLength() + "");
 
-		screen.output(out);
-		out.flush();
-		out.close();
-	}
+        screen.output(out);
+        out.flush();
+        out.close();
+    }
 }
