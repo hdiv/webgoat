@@ -1,19 +1,5 @@
 package org.owasp.webgoat;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.TimeZone;
-
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-
 import org.owasp.webgoat.lessons.AbstractLesson;
 import org.owasp.webgoat.lessons.WelcomeScreen;
 import org.owasp.webgoat.lessons.admin.WelcomeAdminScreen;
@@ -26,28 +12,49 @@ import org.owasp.webgoat.session.WebgoatContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
+
 /**
  * *************************************************************************************************
  *
  *
- * This file is part of WebGoat, an Open Web Application Security Project utility. For details, please see http://www.owasp.org/
+ * This file is part of WebGoat, an Open Web Application Security Project
+ * utility. For details, please see http://www.owasp.org/
  *
  * Copyright (c) 2002 - 20014 Bruce Mayhew
  *
- * This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation; either version 2 of the License, or (at your option) any later
+ * version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+ * Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Getting Source ==============
  *
- * Source for this application is maintained at https://github.com/WebGoat/WebGoat, a repository for free software projects.
+ * Source for this application is maintained at https://github.com/WebGoat/WebGoat, a repository
+ * for free software projects.
  *
- * @author Jeff Williams <a href="http://www.aspectsecurity.com">Aspect Security</a>
+ * @author Jeff Williams <a href="http://www.aspectsecurity.com">Aspect
+ * Security</a>
  * @author Bruce Mayhew <a href="http://code.google.com/p/webgoat">WebGoat</a>
  * @since October 28, 2003
  * @version $Id: $Id
@@ -79,9 +86,10 @@ public class HammerHead extends HttpServlet {
 	 */
 	public static String propertiesPath = null;
 
-	/**
-	 * provides convenience methods for getting setup information from the ServletContext
-	 */
+    /**
+     * provides convenience methods for getting setup information from the
+     * ServletContext
+     */
 	private WebgoatContext webgoatContext = null;
 
 	/**
@@ -92,7 +100,7 @@ public class HammerHead extends HttpServlet {
 	 * @exception ServletException Description of the Exception
 	 */
 	@Override
-	public void doGet(final HttpServletRequest request, final HttpServletResponse response) throws IOException, ServletException {
+	public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
 		doPost(request, response);
 	}
 
@@ -104,7 +112,7 @@ public class HammerHead extends HttpServlet {
 	 * @exception ServletException Description of the Exception
 	 */
 	@Override
-	public void doPost(final HttpServletRequest request, final HttpServletResponse response) throws IOException, ServletException {
+	public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
 		Screen screen = null;
 
 		WebSession mySession = null;
@@ -154,8 +162,8 @@ public class HammerHead extends HttpServlet {
 					if (!uri.endsWith(lesson.getLink())) {
 						screen.getLessonTracker(mySession).incrementNumVisits();
 					}
-				}
-				else if ("POST".equals(request.getMethod()) && mySession.getPreviousScreen() == mySession.getCurrentScreen()) {
+                } else if ("POST".equals(request.getMethod())
+                        && mySession.getPreviousScreen() == mySession.getCurrentScreen()) {
 					screen.getLessonTracker(mySession).incrementNumVisits();
 				}
 			}
@@ -191,10 +199,9 @@ public class HammerHead extends HttpServlet {
 		finally {
 			try {
 				if (screen instanceof ErrorScreen) {
-					writeScreen(mySession, screen, response);
+                    this.writeScreen(mySession, screen, response);
 				}
-			}
-			catch (Throwable thr) {
+            } catch (Throwable thr) {
 				logger.error("Could not write error screen", thr);
 			}
 			WebSession.returnConnection(mySession);
@@ -202,7 +209,7 @@ public class HammerHead extends HttpServlet {
 		}
 	}
 
-	private String getViewPage(final WebSession webSession) {
+	private String getViewPage(WebSession webSession) {
 		// now always display the lesson content
 		String page = "/lesson_content.jsp";
 		// page = "/main.jsp";
@@ -215,7 +222,7 @@ public class HammerHead extends HttpServlet {
 	 * @param date Description of the Parameter
 	 * @return RFC 1123 http date format
 	 */
-	protected static String formatHttpDate(final Date date) {
+	protected static String formatHttpDate(Date date) {
 		synchronized (httpDateFormat) {
 			return httpDateFormat.format(date);
 		}
@@ -251,15 +258,16 @@ public class HammerHead extends HttpServlet {
 	 * @param request Description of the Parameter
 	 * @param message Description of the Parameter
 	 */
-	public void log(final HttpServletRequest request, final String message) {
+	public void log(HttpServletRequest request, String message) {
 		String output = new Date() + " | " + request.getRemoteHost() + ":" + request.getRemoteAddr() + " | " + message;
 		log(output);
 		logger.debug(output);
 	}
 
 	/*
-	 * public List getLessons(Category category, String role) { Course course = mySession.getCourse(); // May need to clone the List before
-	 * returning it. //return new ArrayList(course.getLessons(category, role)); return course.getLessons(category, role); }
+     * public List getLessons(Category category, String role) { Course course =
+     * mySession.getCourse(); // May need to clone the List before returning it. //return new
+     * ArrayList(course.getLessons(category, role)); return course.getLessons(category, role); }
 	 */
 	/**
 	 * Description of the Method
@@ -267,7 +275,7 @@ public class HammerHead extends HttpServlet {
 	 * @param s Description of the Parameter
 	 * @return Description of the Return Value
 	 */
-	protected Screen makeScreen(final WebSession s) {
+	protected Screen makeScreen(WebSession s) {
 		Screen screen = null;
 		int scr = s.getCurrentScreen();
 		Course course = s.getCourse();
@@ -275,8 +283,7 @@ public class HammerHead extends HttpServlet {
 		if (s.isUser() || s.isChallenge()) {
 			if (scr == WebSession.WELCOME) {
 				screen = new WelcomeScreen(s);
-			}
-			else {
+            } else {
 				AbstractLesson lesson = course.getLesson(s, scr, AbstractLesson.USER_ROLE);
 				if (lesson == null && s.isHackedAdmin()) {
 					// If admin was hacked, let the user see some of the
@@ -298,17 +305,14 @@ public class HammerHead extends HttpServlet {
 
 					lesson.handleRequest(s);
 					s.setCurrentMenu(lesson.getCategory().getRanking());
-				}
-				else {
+                } else {
 					screen = new ErrorScreen(s, "Invalid screen requested.  Try: http://localhost/WebGoat/attack");
 				}
 			}
-		}
-		else if (s.isAdmin()) {
+        } else if (s.isAdmin()) {
 			if (scr == WebSession.WELCOME) {
 				screen = new WelcomeAdminScreen(s);
-			}
-			else {
+            } else {
 				// Admin can see all roles.
 				// FIXME: should be able to pass a list of roles.
 				AbstractLesson lesson = course.getLesson(s, scr, AbstractLesson.ADMIN_ROLE);
@@ -333,15 +337,14 @@ public class HammerHead extends HttpServlet {
 
 					lesson.handleRequest(s);
 					s.setCurrentMenu(lesson.getCategory().getRanking());
-				}
-				else {
+                } else {
 					screen = new ErrorScreen(s,
 							"Invalid screen requested.  Try Setting Admin to false or Try: http://localhost/WebGoat/attack");
 				}
 			}
 		}
 
-		return screen;
+        return (screen);
 	}
 
 	/**
@@ -351,13 +354,12 @@ public class HammerHead extends HttpServlet {
 	 * @param response The new cacheHeaders value
 	 * @param expiry The new cacheHeaders value
 	 */
-	protected static void setCacheHeaders(final HttpServletResponse response, final int expiry) {
+	protected static void setCacheHeaders(HttpServletResponse response, int expiry) {
 		if (expiry == 0) {
 			response.setHeader("Pragma", "no-cache");
 			response.setHeader("Cache-Control", "no-cache");
 			response.setHeader("Expires", formatHttpDate(new Date()));
-		}
-		else {
+        } else {
 			Date expiryDate = new Date(System.currentTimeMillis() + expiry);
 			response.setHeader("Expires", formatHttpDate(expiryDate));
 		}
@@ -372,7 +374,7 @@ public class HammerHead extends HttpServlet {
 	 * @return Description of the Return Value
 	 * @throws java.io.IOException if any.
 	 */
-	protected WebSession updateSession(final HttpServletRequest request, final HttpServletResponse response, final ServletContext context)
+	protected WebSession updateSession(HttpServletRequest request, HttpServletResponse response, ServletContext context)
 			throws IOException {
 		HttpSession hs;
 		// session should already be created by spring security
@@ -384,11 +386,10 @@ public class HammerHead extends HttpServlet {
 		WebSession session = null;
 		Object o = hs.getAttribute(WebSession.SESSION);
 
-		if (o != null && o instanceof WebSession) {
+        if ((o != null) && o instanceof WebSession) {
 			session = (WebSession) o;
 			hs.setAttribute(WebSession.COURSE, session.getCourse());
-		}
-		else {
+        } else {
 			// Create new custom session and save it in the HTTP session
 			logger.warn("HH Creating new WebSession");
 			session = new WebSession(webgoatContext, context);
@@ -400,7 +401,7 @@ public class HammerHead extends HttpServlet {
 			hs.setMaxInactiveInterval(sessionTimeoutSeconds);
 		}
 
-		session.update(request, response, getServletName());
+        session.update(request, response, this.getServletName());
 		// update last attack request info (cookies, parms)
 		// this is so the REST services can have access to them via the session
 		session.updateLastAttackRequestInfo(request);
@@ -408,7 +409,7 @@ public class HammerHead extends HttpServlet {
 		// to authenticate
 		logger.debug("HH Leaving Session_id: " + hs.getId());
 		// dumpSession( hs );
-		return session;
+        return (session);
 	}
 
 	/**
@@ -421,7 +422,7 @@ public class HammerHead extends HttpServlet {
 	 * @exception IOException Description of the Exception
 	 * @throws java.io.IOException if any.
 	 */
-	protected void writeScreen(final WebSession s, Screen screen, final HttpServletResponse response) throws IOException {
+	protected void writeScreen(WebSession s, Screen screen, HttpServletResponse response) throws IOException {
 		response.setContentType("text/html");
 
 		PrintWriter out = response.getWriter();
