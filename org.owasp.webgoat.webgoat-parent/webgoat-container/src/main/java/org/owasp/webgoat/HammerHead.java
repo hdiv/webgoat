@@ -190,9 +190,7 @@ public class HammerHead extends HttpServlet {
             request.getRequestDispatcher(viewPage).forward(request, response);
         }
         catch (Throwable t) {
-            if (t.getClass().getName().startsWith("org.hdiv")) {
-                throw new RuntimeException(t);
-            }
+            findAttack(t);
             logger.error("Error handling request", t);
             screen = new ErrorScreen(mySession, t);
         }
@@ -207,6 +205,15 @@ public class HammerHead extends HttpServlet {
             WebSession.returnConnection(mySession);
             logger.debug("Leaving doPost: ");
         }
+    }
+    
+    private void findAttack(Throwable t) {
+    	if(t!=null) {
+    	if (t.getClass().getName().startsWith("org.hdiv")) {
+    		throw new RuntimeException(t);
+    	}
+    	findAttack(t.getCause());
+    	}
     }
 
     private String getViewPage(WebSession webSession) {
